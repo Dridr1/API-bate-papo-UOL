@@ -24,7 +24,6 @@ const userSchema = joi.object({
 });
 
 const messageSchema = joi.object({
-    from: joi.string().required(),
     to: joi.string().required(),
     text: joi.string().required(),
     type: joi.string().required()
@@ -35,19 +34,18 @@ const messageSchema = joi.object({
 app.post('/participants', async (req, res) => {
     const user = req.body;
     const validation = userSchema.validate(user);
-    if(validation.error){
+    if (validation.error) {
         res.sendStatus(422);
         return;
     }
     try {
-        const isThereAnyoneWithThisName = await db.collection("participants").findOne({name: user.name});
-        if(isThereAnyoneWithThisName){
+        if (await db.collection("participants").findOne({ name: user.name })) {
             res.sendStatus(409);
             return;
         }
 
-        await db.collection("participants").insertOne({...user, lastStatus: Date.now()});
-        await db.collection("messages").insertOne({from: user.name, to: "Todos", text: "entra na sala...", type: "status", time: dayjs().format(`HH/mm/ss`)});
+        await db.collection("participants").insertOne({ ...user, lastStatus: Date.now() });
+        await db.collection("messages").insertOne({ from: user.name, to: "Todos", text: "entra na sala...", type: "status", time: dayjs().format(`HH/mm/ss`) });
 
         res.sendStatus(201);
     } catch (error) {
@@ -64,6 +62,28 @@ app.get("/participants", async (req, res) => {
     }
 });
 
+// Messages Routes
+
+app.post('/messages', async (req, res) => {
+    const validMessage = messageSchema.validate(req.body, { abortEarly: true });
+    if (validMessage.error) {
+        return res.sendStatus(422);
+    }
+    try {
+        const isOnline = await db.collection('participants').findOne({ name: req.headers.user });
+        if (!isOnline) {
+            return res.sendStatus(422);
+        }
+        await db.collection("messages").insertOne({from: req.headers.user, ...req.body, time: dayjs().format("HH:mm:ss")});
+
+        res.sendStatus(201);
+
+
+    } catch (error) {
+        res.send(error);
+        return;
+    }
+});
 
 app.listen(4000, () => {
     console.log(`|-----------------------------------|`);
