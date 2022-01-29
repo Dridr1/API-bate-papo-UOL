@@ -12,6 +12,7 @@ const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect(() => {
     db = mongoClient.db("chatUOL");
+
 });
 
 const app = express();
@@ -99,6 +100,20 @@ app.get('/messages', async (req, res) => {
         }
     } catch (error) {
         return res.send(error);
+    }
+});
+
+// Status route
+app.post("/status", async (req, res) => {
+    try {
+        const isOnline = await db.collection('participants').findOne({ name: req.headers.user });
+        if (!isOnline) {
+            return res.sendStatus(404);
+        }
+        await db.collection("participants").updateOne({ _id: isOnline._id }, { $set: { lastStatus: Date.now() } });
+        res.sendStatus(200);
+    } catch (error) {
+        res.send(error);
     }
 });
 
