@@ -53,7 +53,17 @@ app.post('/participants', async (req, res) => {
     } catch (error) {
         console.log(error);
     }
-})
+});
+
+app.get("/participants", async (req, res) => {
+    try {
+        const participants = await db.collection("participants").find().toArray();
+        res.status(200).send(participants);
+    } catch (error) {
+        res.send(error);
+    }
+});
+
 
 app.listen(4000, () => {
     console.log(`|-----------------------------------|`);
