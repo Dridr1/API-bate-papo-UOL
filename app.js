@@ -12,7 +12,6 @@ const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect(() => {
     db = mongoClient.db("chatUOL");
-
 });
 
 const app = express();
@@ -73,15 +72,13 @@ app.post('/messages', async (req, res) => {
         return res.sendStatus(422);
     }
     try {
-        const isOnline = await db.collection('participants').findOne({ name: req.headers.user });
-        if (!isOnline) {
-            return res.sendStatus(422);
-        }
-        await db.collection("messages").insertOne({ from: req.headers.user, ...req.body, time: dayjs().format("HH:mm:ss") });
+        const { user } = req.headers;
+        const isOnline = await db.collection('participants').findOne({ name: user });
 
+        if (!isOnline) return res.sendStatus(422);
+
+        await db.collection("messages").insertOne({ from: user, ...req.body, time: dayjs().format("HH:mm:ss") });
         res.sendStatus(201);
-
-
     } catch (error) {
         res.send(error);
         return;
@@ -116,6 +113,20 @@ app.post("/status", async (req, res) => {
         res.send(error);
     }
 });
+
+// Checking active users
+setInterval(async () => {
+    try {
+        const participants = await db.collection("participants").find().toArray();
+        for(const participant of participants){
+            if(Date.now() - participant.lastStatus > 10000){
+                await db.collection("participants").deleteOne({_id: participant._id});
+            }
+        }
+    } catch (error) {
+        console.log(error);
+    }
+}, 15000);
 
 app.listen(4000, () => {
     console.log(`|-----------------------------------|`);
