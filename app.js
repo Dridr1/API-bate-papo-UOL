@@ -74,7 +74,7 @@ app.post('/messages', async (req, res) => {
         if (!isOnline) {
             return res.sendStatus(422);
         }
-        await db.collection("messages").insertOne({from: req.headers.user, ...req.body, time: dayjs().format("HH:mm:ss")});
+        await db.collection("messages").insertOne({ from: req.headers.user, ...req.body, time: dayjs().format("HH:mm:ss") });
 
         res.sendStatus(201);
 
@@ -82,6 +82,21 @@ app.post('/messages', async (req, res) => {
     } catch (error) {
         res.send(error);
         return;
+    }
+});
+
+app.get('/messages', async (req, res) => {
+    try {
+        const messages = await db.collection("messages").find().toArray();
+        const filteredMessages = messages.filter(message => message.from === req.headers.user || message.to === req.headers.user || message.to === "Todos" || message.type === 'message');
+
+        if (req.query.limit === undefined) {
+            return res.status(200).send(filteredMessages);
+        } else {
+            return res.status(200).send(filteredMessages.slice(filteredMessages.length - parseInt(req.query.limit), filteredMessages.length));
+        }
+    } catch (error) {
+        return res.send(error);
     }
 });
 
