@@ -39,7 +39,9 @@ app.post('/participants', async (req, res) => {
         return;
     }
     try {
-        if (await db.collection("participants").findOne({ name: user.name })) {
+        await db.collection("participants").createIndex({ type: 1 }, { collation: { locale: 'pt', strength: 2 } });
+        const isAlreadyInUse = await db.collection("participants").findOne({ name: user.name }, { collation: { locale: "pt", strength: 2 } })
+        if (isAlreadyInUse) {
             res.sendStatus(409);
             return;
         }
