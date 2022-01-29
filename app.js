@@ -4,25 +4,22 @@ import dotenv from "dotenv";
 import joi from "joi";
 import { MongoClient } from "mongodb";
 import dayjs from "dayjs";
+import { stripHtml } from "string-strip-html";
 
 dotenv.config();
-
 // Contection to DB
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect(() => {
     db = mongoClient.db("chatUOL");
 });
-
 const app = express();
 app.use(express.json());
 app.use(cors());
-
 // Schemes
 const userSchema = joi.object({
     name: joi.string().required()
 });
-
 const messageSchema = joi.object({
     to: joi.string().required(),
     text: joi.string().required(),
@@ -32,26 +29,26 @@ const messageSchema = joi.object({
 // Participants Routes
 
 app.post('/participants', async (req, res) => {
-    const user = req.body;
-    const validation = userSchema.validate(user);
+    const user = stripHtml(req.body.name).result.trim();
+    const validation = userSchema.validate({name: user});
     if (validation.error) {
         res.sendStatus(422);
         return;
     }
     try {
         await db.collection("participants").createIndex({ type: 1 }, { collation: { locale: 'pt', strength: 2 } });
-        const isAlreadyInUse = await db.collection("participants").findOne({ name: user.name }, { collation: { locale: "pt", strength: 2 } })
+        const isAlreadyInUse = await db.collection("participants").findOne({ name: user }, { collation: { locale: "pt", strength: 2 } })
         if (isAlreadyInUse) {
             res.sendStatus(409);
             return;
         }
 
-        await db.collection("participants").insertOne({ ...user, lastStatus: Date.now() });
-        await db.collection("messages").insertOne({ from: user.name, to: "Todos", text: "entra na sala...", type: "status", time: dayjs().format(`HH/mm/ss`) });
+        await db.collection("participants").insertOne({ name: user, lastStatus: Date.now() });
+        await db.collection("messages").insertOne({ from: user, to: "Todos", text: "entra na sala...", type: "status", time: dayjs().format(`HH:mm:ss`) });
 
         res.sendStatus(201);
     } catch (error) {
-        console.log(error);
+        res.send(error);
     }
 });
 
@@ -72,12 +69,19 @@ app.post('/messages', async (req, res) => {
         return res.sendStatus(422);
     }
     try {
-        const { user } = req.headers;
+        const user = stripHtml(req.headers.user).result.trim();
         const isOnline = await db.collection('participants').findOne({ name: user });
-
         if (!isOnline) return res.sendStatus(422);
 
-        await db.collection("messages").insertOne({ from: user, ...req.body, time: dayjs().format("HH:mm:ss") });
+        const message = {
+            from: stripHtml(req.headers.user).result.trim(),
+            to: stripHtml(req.body.to).result.trim(),
+            text: stripHtml(req.body.text).result.trim(),
+            type: stripHtml(req.body.type).result.trim(),
+            time: dayjs().format("HH:mm:ss")
+        };
+
+        await db.collection("messages").insertOne(message);
         res.sendStatus(201);
     } catch (error) {
         res.send(error);
@@ -86,9 +90,10 @@ app.post('/messages', async (req, res) => {
 });
 
 app.get('/messages', async (req, res) => {
+    const user = stripHtml(req.headers.user).result.trim();
     try {
         const messages = await db.collection("messages").find().toArray();
-        const filteredMessages = messages.filter(message => message.from === req.headers.user || message.to === req.headers.user || message.to === "Todos" || message.type === 'message');
+        const filteredMessages = messages.filter(message => message.from === user || message.to === user || message.to === "Todos" || message.type === 'message');
 
         if (req.query.limit === undefined) {
             return res.status(200).send(filteredMessages);
@@ -102,8 +107,9 @@ app.get('/messages', async (req, res) => {
 
 // Status route
 app.post("/status", async (req, res) => {
+    const user = stripHtml(req.headers.user).result.trim();
     try {
-        const isOnline = await db.collection('participants').findOne({ name: req.headers.user });
+        const isOnline = await db.collection('participants').findOne({ name: user });
         if (!isOnline) {
             return res.sendStatus(404);
         }
