@@ -118,9 +118,9 @@ app.post("/status", async (req, res) => {
 setInterval(async () => {
     try {
         const participants = await db.collection("participants").find().toArray();
-        for(const participant of participants){
-            if(Date.now() - participant.lastStatus > 10000){
-                await db.collection("participants").deleteOne({_id: participant._id});
+        for (const participant of participants) {
+            if (Date.now() - participant.lastStatus > 10000) {
+                await db.collection("participants").deleteOne({ _id: participant._id });
             }
         }
     } catch (error) {
