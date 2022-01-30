@@ -24,7 +24,13 @@ const messageSchema = joi.object({
     to: joi.string().required(),
     text: joi.string().required(),
     type: joi.string().required()
-})
+});
+
+const updateMessageSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().valid("message", "private_message").required()
+});
 
 // Participants Routes
 
@@ -114,12 +120,40 @@ app.delete('/messages/:messageID', async (req, res) => {
         if (!messageToBeDeleted) return res.sendStatus(404);
         else if (messageToBeDeleted.from !== user) return res.sendStatus(401);
 
-        await db.collection("messages").deleteOne({_id: id});
-        res.send(200);
+        await db.collection("messages").deleteOne({ _id: id });
+        res.sendStatus(200);
     } catch (error) {
         res.sendStatus(error);
     }
 })
+
+app.put("/messages/:messageID", async (req, res) => {
+    const user = stripHtml(req.headers.user).result.trim();
+    const message = req.body;
+    const id = new ObjectId(req.params.messageID);
+    const validate = updateMessageSchema.validate(message);
+
+    if (validate.error) return res.sendStatus(422);
+    try {
+        const messageToBeUpdated = await db.collection("messages").findOne({ _id: id });
+        const isValidUser = await db.collection("participants").findOne({ name: user });
+
+        if (!messageToBeUpdated) return res.sendStatus(404);
+        else if (!isValidUser) return res.sendStatus(404);
+        else if (messageToBeUpdated.from !== user) return res.sendStatus(401);
+        
+        await db.collection("messages").updateOne({_id: new ObjectId(req.params.messageID)}, {$set: {
+            to: stripHtml(message.to).result.trim(),
+            text: stripHtml(message.text).result.trim(),
+            type: stripHtml(message.type).result.trim(),
+            time: dayjs().format("HH:mm:ss")
+        }});
+        
+        res.sendStatus(200);
+    } catch (error) {
+        res.send(error);
+    }
+});
 
 // Status route
 app.post("/status", async (req, res) => {
