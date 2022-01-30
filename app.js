@@ -5,9 +5,7 @@ import joi from "joi";
 import { MongoClient, ObjectId } from "mongodb";
 import dayjs from "dayjs";
 import { stripHtml } from "string-strip-html";
-
 dotenv.config();
-// Contection to DB
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect(() => {
@@ -16,7 +14,6 @@ mongoClient.connect(() => {
 const app = express();
 app.use(express.json());
 app.use(cors());
-// Schemes
 const userSchema = joi.object({
     name: joi.string().required()
 });
@@ -25,15 +22,11 @@ const messageSchema = joi.object({
     text: joi.string().required(),
     type: joi.string().required()
 });
-
 const updateMessageSchema = joi.object({
     to: joi.string().required(),
     text: joi.string().required(),
     type: joi.string().valid("message", "private_message").required()
 });
-
-// Participants Routes
-
 app.post('/participants', async (req, res) => {
     const user = stripHtml(req.body.name).result.trim();
     const validation = userSchema.validate({ name: user });
@@ -57,7 +50,6 @@ app.post('/participants', async (req, res) => {
         res.send(error);
     }
 });
-
 app.get("/participants", async (req, res) => {
     try {
         const participants = await db.collection("participants").find().toArray();
@@ -66,9 +58,6 @@ app.get("/participants", async (req, res) => {
         res.send(error);
     }
 });
-
-// Messages Routes
-
 app.post('/messages', async (req, res) => {
     const validMessage = messageSchema.validate(req.body, { abortEarly: true });
     if (validMessage.error) {
@@ -94,7 +83,6 @@ app.post('/messages', async (req, res) => {
         return;
     }
 });
-
 app.get('/messages', async (req, res) => {
     const user = stripHtml(req.headers.user).result.trim();
     try {
@@ -110,7 +98,6 @@ app.get('/messages', async (req, res) => {
         return res.send(error);
     }
 });
-
 app.delete('/messages/:messageID', async (req, res) => {
     const user = stripHtml(req.headers.user).result.trim();
     const id = new ObjectId(req.params.messageID);
@@ -125,8 +112,7 @@ app.delete('/messages/:messageID', async (req, res) => {
     } catch (error) {
         res.sendStatus(error);
     }
-})
-
+});
 app.put("/messages/:messageID", async (req, res) => {
     const user = stripHtml(req.headers.user).result.trim();
     const message = req.body;
@@ -154,8 +140,6 @@ app.put("/messages/:messageID", async (req, res) => {
         res.send(error);
     }
 });
-
-// Status route
 app.post("/status", async (req, res) => {
     const user = stripHtml(req.headers.user).result.trim();
     try {
@@ -169,8 +153,6 @@ app.post("/status", async (req, res) => {
         res.send(error);
     }
 });
-
-// Checking active users
 setInterval(async () => {
     try {
         const participants = await db.collection("participants").find().toArray();
@@ -183,7 +165,6 @@ setInterval(async () => {
         console.log(error);
     }
 }, 15000);
-
 app.listen(5000, () => {
     console.log(`|-----------------------------------|`);
     console.log(`| Running at https://localhost:5000 |`);
