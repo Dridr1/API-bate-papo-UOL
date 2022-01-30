@@ -41,10 +41,8 @@ app.post('/participants', async (req, res) => {
             res.sendStatus(409);
             return;
         }
-
         await db.collection("participants").insertOne({ name: user, lastStatus: Date.now() });
         await db.collection("messages").insertOne({ from: user, to: "Todos", text: "entra na sala...", type: "status", time: dayjs().format(`HH:mm:ss`) });
-
         res.sendStatus(201);
     } catch (error) {
         res.send(error);
@@ -75,7 +73,6 @@ app.post('/messages', async (req, res) => {
             type: stripHtml(req.body.type).result.trim(),
             time: dayjs().format("HH:mm:ss")
         };
-
         await db.collection("messages").insertOne(message);
         res.sendStatus(201);
     } catch (error) {
@@ -88,7 +85,6 @@ app.get('/messages', async (req, res) => {
     try {
         const messages = await db.collection("messages").find().toArray();
         const filteredMessages = messages.filter(message => message.from === user || message.to === user || message.to === "Todos" || message.type === 'message');
-
         if (req.query.limit === undefined) {
             return res.status(200).send(filteredMessages);
         } else {
@@ -101,12 +97,10 @@ app.get('/messages', async (req, res) => {
 app.delete('/messages/:messageID', async (req, res) => {
     const user = stripHtml(req.headers.user).result.trim();
     const id = new ObjectId(req.params.messageID);
-
     try {
         const messageToBeDeleted = await db.collection("messages").findOne({ _id: id });
         if (!messageToBeDeleted) return res.sendStatus(404);
         else if (messageToBeDeleted.from !== user) return res.sendStatus(401);
-
         await db.collection("messages").deleteOne({ _id: id });
         res.sendStatus(200);
     } catch (error) {
@@ -118,23 +112,21 @@ app.put("/messages/:messageID", async (req, res) => {
     const message = req.body;
     const id = new ObjectId(req.params.messageID);
     const validate = updateMessageSchema.validate(message);
-
     if (validate.error) return res.sendStatus(422);
     try {
         const messageToBeUpdated = await db.collection("messages").findOne({ _id: id });
         const isValidUser = await db.collection("participants").findOne({ name: user });
-
         if (!messageToBeUpdated) return res.sendStatus(404);
         else if (!isValidUser) return res.sendStatus(404);
         else if (messageToBeUpdated.from !== user) return res.sendStatus(401);
-        
-        await db.collection("messages").updateOne({_id: new ObjectId(req.params.messageID)}, {$set: {
-            to: stripHtml(message.to).result.trim(),
-            text: stripHtml(message.text).result.trim(),
-            type: stripHtml(message.type).result.trim(),
-            time: dayjs().format("HH:mm:ss")
-        }});
-        
+        await db.collection("messages").updateOne({ _id: new ObjectId(req.params.messageID) }, {
+            $set: {
+                to: stripHtml(message.to).result.trim(),
+                text: stripHtml(message.text).result.trim(),
+                type: stripHtml(message.type).result.trim(),
+                time: dayjs().format("HH:mm:ss")
+            }
+        });
         res.sendStatus(200);
     } catch (error) {
         res.send(error);
@@ -154,11 +146,12 @@ app.post("/status", async (req, res) => {
     }
 });
 setInterval(async () => {
+    const participants = await db.collection("participants").find().toArray();
     try {
-        const participants = await db.collection("participants").find().toArray();
         for (const participant of participants) {
             if (Date.now() - participant.lastStatus > 10000) {
                 await db.collection("participants").deleteOne({ _id: participant._id });
+                await db.collection("messages").insertOne({ from: participant.name, to: "Todos", text: "sai da sala...", type: "status", time: dayjs().format("HH:mm:ss") });
             }
         }
     } catch (error) {
