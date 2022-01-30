@@ -9,7 +9,7 @@ An API based on a nostalgic brazillian internet site called "Bate-Papo UOL"
 ### How to run this API locally:
 * install the dependencies necessary to run the API (``` npm i ``` on a terminal) 
 * Run a Mongo data base (``` mongod --dbpath <path> ```)
-* Run Mongo or Mongosh and if necessary change the MONGO_URI adress in the .env file
+* Run Mongo or Mongosh and write you database adress at the MONGO_URI in the .env file
 * Run the app.js file with node
 * Start requesting to the API :)
 * If you want to see it working with a front-end I suggest you to use this one:
