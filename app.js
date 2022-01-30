@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import joi from "joi";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dayjs from "dayjs";
 import { stripHtml } from "string-strip-html";
 
@@ -30,7 +30,7 @@ const messageSchema = joi.object({
 
 app.post('/participants', async (req, res) => {
     const user = stripHtml(req.body.name).result.trim();
-    const validation = userSchema.validate({name: user});
+    const validation = userSchema.validate({ name: user });
     if (validation.error) {
         res.sendStatus(422);
         return;
@@ -104,6 +104,22 @@ app.get('/messages', async (req, res) => {
         return res.send(error);
     }
 });
+
+app.delete('/messages/:messageID', async (req, res) => {
+    const user = stripHtml(req.headers.user).result.trim();
+    const id = new ObjectId(req.params.messageID);
+
+    try {
+        const messageToBeDeleted = await db.collection("messages").findOne({ _id: id });
+        if (!messageToBeDeleted) return res.sendStatus(404);
+        else if (messageToBeDeleted.from !== user) return res.sendStatus(401);
+
+        await db.collection("messages").deleteOne({_id: id});
+        res.send(200);
+    } catch (error) {
+        res.sendStatus(error);
+    }
+})
 
 // Status route
 app.post("/status", async (req, res) => {
